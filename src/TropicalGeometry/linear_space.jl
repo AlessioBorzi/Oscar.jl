@@ -18,7 +18,10 @@
 
 @attributes mutable struct TropicalLinearSpace{M,T} <: TropicalVarietySupertype{M,T}
     # GapTV::GapObj
-    polymakeTV::Polymake.BigObject
+    polyhedralComplex::PolyhedralComplex
+    function TropicalLinearSpace{M,T}(Sigma::PolyhedralComplex) where {M,T}
+        return new{M,T}(Sigma)
+    end
 end
 export TropicalLinearSpace
 
@@ -38,6 +41,15 @@ Construct a tropical linear space from a degree 1 polynomial ideal
 """
 function TropicalLinearSpace(ideal::MPolyIdeal{fmpq_poly})
   return #...
+end"""
+function TropicalLinearSpace(plv::Vector{Union{Rational,PosInf,Oscar.IntegerUnion}},nElement::Int,rank::Int; M::Union{typeof(min),typeof(max)}=min)
+    indexSet = findall(i->i!=inf, plv)
+    bases = [ sort(Hecke.subsets(Vector{Int}(0:nElement-1),rank))[i] for i in indexSet ]
+    val = Polymake.matroid.ValuatedMatroid{M}(BASES = bases, N_ELEMENTS = nElement,VALUATION_ON_BASES = Vector{Rational}(plv[indexSet]) )
+    #return Polymake.tropical.linear_space{min}(val)
+    P = Polymake.tropical.linear_space{M}(val)
+    P = PolyhedralComplex(P)
+    return TropicalLinearSpace{M,true}(P)
 end
 
 
@@ -48,13 +60,19 @@ Construct a tropical linear space from its Pluecker vector
 
 # Examples
 """
-function TropicalLinearSpace(plv::Vector)
-  return #...
+function TropicalLinearSpace(plv::Vector{Union{Rational,PosInf,Oscar.IntegerUnion}},nElement::Int,rank::Int; M::Union{typeof(min),typeof(max)}=min)
+    indexSet = findall(i->i!=inf, plv)
+    bases = [ sort(Hecke.subsets(Vector{Int}(0:nElement-1),rank))[i] for i in indexSet ]
+    val = Polymake.matroid.ValuatedMatroid{M}(BASES = bases, N_ELEMENTS = nElement,VALUATION_ON_BASES = Vector{Rational}(plv[indexSet]) )
+    #return Polymake.tropical.linear_space{min}(val)
+    P = Polymake.tropical.linear_space{M}(val)
+    P = PolyhedralComplex(P)
+    return TropicalLinearSpace{M,true}(P)
 end
 
-#needs Oscar type as entry 
+#needs Oscar type as entry
 function TropicalLinearSpace(tropicalmatrix::MatElem)
-  plv = Nemo.minors(tropicalmatrix, min(size(tropicalmatrix)[1], size(tropicalmatrix)[2])) 
+  plv = Nemo.minors(tropicalmatrix, min(size(tropicalmatrix)[1], size(tropicalmatrix)[2]))
   rk = rank(tropicalmatrix)
   nelement = size(tropicalmatrix)[2]
   return (plv,nelement, rk)
@@ -67,12 +85,12 @@ end
 
 
 function TropicalLinearSpace(tropicalmatrix::Matrix{fmpq})
-  return TropicalLinearSpace(matrix(base_ring(tropicalmatrix), tropicalmatrix))  
+  return TropicalLinearSpace(matrix(base_ring(tropicalmatrix), tropicalmatrix))
 end
 
 
 function TropicalLinearSpace(tropicalmatrix::Matrix{fmpz})
-  return TropicalLinearSpace(matrix(base_ring(tropicalmatrix), tropicalmatrix))  
+  return TropicalLinearSpace(matrix(base_ring(tropicalmatrix), tropicalmatrix))
 end
 ###
 # 3. Basic properties
