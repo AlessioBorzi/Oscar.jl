@@ -41,7 +41,8 @@ Construct a tropical linear space from a degree 1 polynomial ideal
 """
 function TropicalLinearSpace(ideal::MPolyIdeal{fmpq_poly})
   return #...
-end"""
+end
+
 function TropicalLinearSpace(plv::Vector{Union{Rational,PosInf,Oscar.IntegerUnion}},nElement::Int,rank::Int; M::Union{typeof(min),typeof(max)}=min)
     indexSet = findall(i->i!=inf, plv)
     bases = [ sort(Hecke.subsets(Vector{Int}(0:nElement-1),rank))[i] for i in indexSet ]
