@@ -1,3 +1,4 @@
+using Core: Matrix
 _whyohwhy1 = AbstractAlgebra.Generic.MPolyRing{padic}
 @attributes _whyohwhy1
 
