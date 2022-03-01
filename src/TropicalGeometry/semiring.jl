@@ -299,7 +299,7 @@ function determinant(x::AbstractAlgebra.Generic.MatSpaceElem{Oscar.TropicalSemir
   return res
 end
 
-function permanent(x::AbstractAlgebra.Generic.MatSpaceElem{Oscar.TropicalNumbersElem{T}}) where {T}
+function permanent(x::AbstractAlgebra.Generic.MatSpaceElem{Oscar.TropicalSemiringElem{T}}) where {T}
   return determinant(x)
 end
 
