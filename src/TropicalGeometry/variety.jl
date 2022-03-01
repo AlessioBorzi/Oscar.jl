@@ -18,11 +18,13 @@
 
 @attributes mutable struct TropicalVariety{M,EMB} <: TropicalVarietySupertype{M,EMB}
     polyhedralComplex::PolyhedralComplex
+    multiplicities::Dict{Vector{Int}, Int}
     function TropicalVariety{M,EMB}(Sigma::PolyhedralComplex) where {M,EMB}
         return new{M,EMB}(Sigma)
     end
 end
 export TropicalVariety
+
 
 function pm_object(T::TropicalVariety)
     if has_attribute(T,:polymake_bigobject)
@@ -45,7 +47,6 @@ function Base.show(io::IO, tv::TropicalVariety{M, EMB}) where {M, EMB}
         print(io, "An abstract $(repr(M)) tropical variety of dimension $(dim(tv))")
     end
 end
-
 
 
 ###
@@ -317,6 +318,7 @@ function tropical_variety(I::MPolyIdeal, val::ValuationMap, convention::Union{ty
       end
     end
     push!(incidence_matrix,incidence_vector)
+
   end
   vertices_and_rays = permutedims(reduce(hcat, vertices_and_rays)) # convert Vector{Vector} to Matrix
 
@@ -324,20 +326,26 @@ function tropical_variety(I::MPolyIdeal, val::ValuationMap, convention::Union{ty
   (w,C,G) = first(working_list_done)
   lineality_space_gens = matrix(QQ,lineality_space(C))
 
-  TropI = TropicalVariety{typeof(max),true}(PolyhedralComplex(IncidenceMatrix(incidence_matrix),
-                                                              vertices_and_rays,
-                                                              far_vertices,
-                                                              lineality_space_gens))
 
 
   # 3.2: Construct lists for weight_vectors, initial_ideals and multiplicities
   weight_vectors = [w for (w,C,G) in working_list_done]
   initial_ideals = [ideal(initial(G,val,w)) for (w,C,G) in working_list_done]
   multiplicities = [multiplicity(inI) for inI in initial_ideals]
-  set_attribute!(TropI,:input_ideal,I)
+
+  mults = Dict(incidence_matrix[i] => multiplicities[i] for i in 1:length(working_list_done))
+  TropI = TropicalVariety{typeof(max),true}(PolyhedralComplex(IncidenceMatrix(incidence_matrix),
+                                                              vertices_and_rays,
+                                                              far_vertices,
+                                                              lineality_space_gens),
+					    mults)
+
+
+
+
+
   set_attribute!(TropI,:weight_vectors,weight_vectors)
   set_attribute!(TropI,:initial_ideals,initial_ideals)
-  set_attribute!(TropI,:multiplicities,multiplicities)
 
   return TropI
 end
