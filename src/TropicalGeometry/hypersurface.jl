@@ -254,3 +254,13 @@ function polynomial(TH::TropicalHypersurface{M,EMB}) where {M,EMB}
     return get_attribute(TH,:tropical_polynomial)
 end
 export polynomial
+
+
+@doc Markdown.doc"""
+    minimalPolynomialFromHypersurface(T::TropicalHypersurface)
+
+Returns the minimal polynomial with smallest possible coefficients of a hypersurface
+"""
+function minimalPolynomialFromHypersurface(T::TropicalHypersurface)
+    return
+end
