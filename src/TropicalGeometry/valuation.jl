@@ -77,7 +77,6 @@ convention(val::ValuationMap) = convention(val.tropical_semiring)
 # trivial valuation
 ###
 
-# Constructor:
 function ValuationMap(K,M::Union{typeof(min),typeof(max)}=min)
   residue_map(c) = return c
   return ValuationMap{typeof(K),Nothing}(K,nothing,K,nothing,K,residue_map,nothing,tropical_semiring(M))
