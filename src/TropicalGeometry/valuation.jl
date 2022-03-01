@@ -52,6 +52,7 @@ struct ValuationMap{typeofValuedField,typeofUniformizer}
   residue_field
   residue_map
   uniformizer_symbol
+  tropical_semiring
 end
 export ValuationMap
 
@@ -80,17 +81,17 @@ end
 ###
 
 # Constructor:
-function ValuationMap(Q::FlintRationalField,p::fmpq)
+function ValuationMap(Q::FlintRationalField, p::fmpq, M::Union{typeof(min),typeof(max)}=min)
   function residue_map(c)
     return FiniteField(ZZ(p))[1](ZZ(c))
   end
-  return ValuationMap{typeof(Q),typeof(p)}(Q,p,ZZ,ZZ(p),FiniteField(ZZ(p))[1],residue_map,:p)
+  return ValuationMap{typeof(Q),typeof(p)}(Q,p,ZZ,ZZ(p),FiniteField(ZZ(p))[1],residue_map,:p,tropical_semiring(M))
 end
 
-ValuationMap(Q::FlintRationalField,p) = ValuationMap(Q,QQ(p)) # for other types of `p` such as `Integer`
+ValuationMap(Q::FlintRationalField,p,M::Union{typeof(min),typeof(max)}=min) = ValuationMap(Q,QQ(p),M) # for other types of `p` such as `Integer`
 
 # Evaluation:
-(val::ValuationMap{FlintRationalField,fmpq})(c) = valuation(QQ(c),val.uniformizer_ring)
+(val::ValuationMap{FlintRationalField,fmpq})(c) = val.tropical_semiring(valuation(QQ(c),val.uniformizer_ring))
 
 # Display:
 function Base.show(io::IO, val::ValuationMap{FlintRationalField,fmpq})
@@ -114,7 +115,7 @@ function t_adic_valuation(c::PolyElem)
 end
 
 # Constructor:
-function ValuationMap(Kt::AbstractAlgebra.Generic.RationalFunctionField,t::AbstractAlgebra.Generic.Rat)
+function ValuationMap(Kt::AbstractAlgebra.Generic.RationalFunctionField,t::AbstractAlgebra.Generic.Rat,M::Union{typeof(min),typeof(max)}=min)
   function residue_map(c)
     valc = t_adic_valuation(c)
     if (valc<0)
@@ -123,11 +124,11 @@ function ValuationMap(Kt::AbstractAlgebra.Generic.RationalFunctionField,t::Abstr
     return base_ring(Kt)(evaluate(c,0))
   end
   Rt,_ = PolynomialRing(base_ring(Kt),symbols(Kt))
-  return ValuationMap{typeof(Kt),typeof(t)}(Kt,t,Rt,Rt(t),base_ring(Kt),residue_map,:t)
+  return ValuationMap{typeof(Kt),typeof(t)}(Kt,t,Rt,Rt(t),base_ring(Kt),residue_map,:t,tropical_semiring(M))
 end
 
 # Evaluation:
-(val::ValuationMap{AbstractAlgebra.Generic.RationalFunctionField{K},AbstractAlgebra.Generic.Rat{K}} where {K})(c) = t_adic_valuation(c)
+(val::ValuationMap{AbstractAlgebra.Generic.RationalFunctionField{K},AbstractAlgebra.Generic.Rat{K}} where {K})(c) = val.tropical_semiring(t_adic_valuation(c))
 
 # Display:
 function Base.show(io::IO, val::ValuationMap{AbstractAlgebra.Generic.RationalFunctionField{K},AbstractAlgebra.Generic.Rat{K}} where {K})
