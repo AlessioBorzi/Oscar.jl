@@ -62,13 +62,13 @@ export ValuationMap
 ###
 
 # Constructor:
-function ValuationMap(K)
+function ValuationMap(K, M::Union{typeof(min),typeof(max)}=min)
   residue_map(c) = return c
-  return ValuationMap{typeof(K),Nothing}(K,nothing,K,nothing,K,residue_map,nothing)
+  return ValuationMap{typeof(K),Nothing}(K,nothing,K,nothing,K,residue_map,nothing,tropical_semiring(M))
 end
 
 # Evaluation:
-(val::ValuationMap{K,Nothing} where {K})(c) = return 0
+(val::ValuationMap{K,Nothing} where {K})(c) = return val.tropical_semiring(0)
 
 # Display:
 function Base.show(io::IO, val::ValuationMap{K,Nothing} where {K})
@@ -88,7 +88,7 @@ function ValuationMap(Q::FlintRationalField, p::fmpq, M::Union{typeof(min),typeo
   return ValuationMap{typeof(Q),typeof(p)}(Q,p,ZZ,ZZ(p),FiniteField(ZZ(p))[1],residue_map,:p,tropical_semiring(M))
 end
 
-ValuationMap(Q::FlintRationalField,p,M::Union{typeof(min),typeof(max)}=min) = ValuationMap(Q,QQ(p),M) # for other types of `p` such as `Integer`
+ValuationMap(Q::FlintRationalField,p::Int,M::Union{typeof(min),typeof(max)}=min) = ValuationMap(Q,QQ(p),M) # for other types of `p` such as `Integer`
 
 # Evaluation:
 (val::ValuationMap{FlintRationalField,fmpq})(c) = val.tropical_semiring(valuation(QQ(c),val.uniformizer_ring))
