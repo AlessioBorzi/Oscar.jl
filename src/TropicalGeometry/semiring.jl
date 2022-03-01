@@ -355,6 +355,32 @@ function permanent(x::AbstractAlgebra.Generic.MatSpaceElem{Oscar.TropicalSemirin
   return determinant(x)
 end
 
+
+
+################################################################################
+#
+#  Tropical Minors
+#
+################################################################################
+@doc Markdown.doc"""
+    tropical_minors(A::MatElem, k::Int)
+
+Return an array consisting of the k-minors of a tropical matrix A
+"""
+function tropical_minors(A::MatElem, k::Int)
+   row_indices = AbstractAlgebra.combinations(nrows(A), k)
+   col_indices = AbstractAlgebra.combinations(ncols(A), k)
+   mins = Vector{elem_type(base_ring(A))}(undef, 0)
+   for ri in row_indices
+      for ci in col_indices
+         push!(mins, determinant(A[ri, ci]))
+      end
+   end
+   return(mins)
+end
+
+
+
 ################################################################################
 #
 #  Polynomials
