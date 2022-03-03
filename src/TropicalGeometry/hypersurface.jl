@@ -255,6 +255,70 @@ function polynomial(TH::TropicalHypersurface{M,EMB}) where {M,EMB}
 end
 export polynomial
 
+@doc Markdown.doc"""
+    minimalPolynomialFromHypersurface(f::Union{AbstractAlgebra.Generic.MPoly{Oscar.TropicalSemiringElem{typeof(min)}},
+                                               AbstractAlgebra.Generic.MPoly{Oscar.TropicalSemiringElem{typeof(max)}}})
+
+Returns the minimal polynomial with smallest possible coefficients of a hypersurface
+"""
+function minimalPolynomialFromHypersurface(f::Union{AbstractAlgebra.Generic.MPoly{Oscar.TropicalSemiringElem{typeof(min)}},
+                                                    AbstractAlgebra.Generic.MPoly{Oscar.TropicalSemiringElem{typeof(max)}}})
+    #E = f.exps
+    E = collect(exponent_vectors(f))
+    #E = [[Int(E[i,j]) for i=1:nrows(E)] for j=1:ncols(E)]
+    P = convex_hull(matrix(QQ, E))
+    pts = lattice_points(P)
+    pts = [Vector{Int}(v) for v in pts]
+    temp = [[Rational(E[r][j]) for j=1:length(E[1])] for r=1:length(E)] #store it in a matrix
+    #temp = matrix(QQ, temp)
+    #weight_vec = collect(coefficients(f))
+    weight_vec = [e.data for e in collect(coefficients(f))]
+    weight_vec_matrix = matrix(QQ, length(weight_vec), 1, weight_vec)
+    S = SubdivisionOfPoints(matrix(QQ,E), weight_vec)
+    M = maximal_cells(S)
+    vertices_with_weights = [(E[i],weight_vec[i]) for i=1:length(E)]
+    #println("vertices_with_weights: ", vertices_with_weights)
+    for i=1:length(M)
+        c = iterate(M, i)
+        cell = [w for w in c[1]]
+        dim = c[2]
+        index_list = Vector{Int}([])
+        r = 0
+        for j in cell
+            spanning_vertices = Vector{Vector{Rational}}([vcat(temp[l],1//1) for l in vcat(index_list, j)])
+            if rank(matrix(QQ,spanning_vertices)) > r
+                append!(index_list, j)
+                r = r+1
+            end
+        end
+        spanning_vertices = Vector{Vector{Rational}}([vcat(temp[l],1//1) for l in index_list])
+        spanning_points = [v[1:dim] for v in spanning_vertices]
+            
+
+        A = [vcat(temp[j], Rational(weight_vec[j]), Rational(1)) for j in index_list] # we need to be picky about which dim+1 points (check for lin indep)
+        A = matrix(QQ, A)
+        _, gen = kernel(A)
+        gen = Rational(1//-gen[length(gen)-1])*[Rational(gen[k]) for k=1:nrows(gen)]
+        ch_cell = convex_hull(matrix(QQ,temp[cell]))
+        l_points = lattice_points(ch_cell)
+        for l in l_points
+            if !(l in spanning_points)
+                #compute the weight
+                w = dot(gen, vcat(l, 0//1, 1//1))
+                append!(vertices_with_weights, [(Vector{Int}(l), w)])
+            end  
+        end
+    end
+
+    h = MPolyBuildCtx(f.parent)
+    for i in 1:length(vertices_with_weights)
+        coord, weigth = vertices_with_weights[i]
+        push_term!(h, f.parent.base_ring(weigth), coord)
+    end
+    p=finish(h)
+    return p
+end
+export minimalPolynomialFromHypersurface
 
 @doc Markdown.doc"""
     minimalPolynomialFromHypersurface(T::TropicalHypersurface)
