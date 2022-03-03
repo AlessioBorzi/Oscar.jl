@@ -57,18 +57,38 @@ end
 export ValuationMap
 
 
+################################################################################
+#
+#  Basic access
+#
+################################################################################
+
+valued_field(val::ValuationMap) = val.valued_field
+uniformizer_field(val::ValuationMap) = val.uniformizer_field
+valued_ring(val::ValuationMap) = val.valued_ring
+uniformizer_ring(val::ValuationMap) = val.uniformizer_ring
+residue_field(val::ValuationMap) = val.residue_field
+residue_map(val::ValuationMap) = val.residue_map
+uniformizer_symbol(val::ValuationMap) = val.uniformizer_symbol
+tropical_semiring(val::ValuationMap) = val.tropical_semiring
+convention(val::ValuationMap) = convention(val.tropical_semiring)
+
 ###
 # trivial valuation
 ###
 
-# Constructor:
-function ValuationMap(K, M::Union{typeof(min),typeof(max)}=min)
+function ValuationMap(K,M::Union{typeof(min),typeof(max)}=min)
   residue_map(c) = return c
   return ValuationMap{typeof(K),Nothing}(K,nothing,K,nothing,K,residue_map,nothing,tropical_semiring(M))
 end
 
 # Evaluation:
-(val::ValuationMap{K,Nothing} where {K})(c) = return val.tropical_semiring(0)
+function (val::ValuationMap{K,Nothing} where {K})(c)
+  if iszero(c)
+    return inf(val.tropical_semiring)
+  end
+  return 0
+end
 
 # Display:
 function Base.show(io::IO, val::ValuationMap{K,Nothing} where {K})
@@ -87,11 +107,20 @@ function ValuationMap(Q::FlintRationalField, p::fmpq, M::Union{typeof(min),typeo
   end
   return ValuationMap{typeof(Q),typeof(p)}(Q,p,ZZ,ZZ(p),FiniteField(ZZ(p))[1],residue_map,:p,tropical_semiring(M))
 end
-
-ValuationMap(Q::FlintRationalField,p::Int,M::Union{typeof(min),typeof(max)}=min) = ValuationMap(Q,QQ(p),M) # for other types of `p` such as `Integer`
+# for other types of `p` such as `Integer`
+ValuationMap(Q::FlintRationalField,p::fmpz,M::Union{typeof(min),typeof(max)}=min) = ValuationMap(Q,QQ(p),M)
+ValuationMap(Q::FlintRationalField,p::Int64,M::Union{typeof(min),typeof(max)}=min) = ValuationMap(Q,QQ(p),M)
 
 # Evaluation:
-(val::ValuationMap{FlintRationalField,fmpq})(c) = val.tropical_semiring(valuation(QQ(c),val.uniformizer_ring))
+function (val::ValuationMap{FlintRationalField,fmpq})(c)
+  if iszero(c)
+    return inf(val.tropical_semiring)
+  end
+  if convention(val)==min
+    return val.tropical_semiring(valuation(QQ(c),val.uniformizer_ring))
+  end
+  return val.tropical_semiring(-valuation(QQ(c),val.uniformizer_ring))
+end
 
 # Display:
 function Base.show(io::IO, val::ValuationMap{FlintRationalField,fmpq})
@@ -128,8 +157,15 @@ function ValuationMap(Kt::AbstractAlgebra.Generic.RationalFunctionField,t::Abstr
 end
 
 # Evaluation:
-(val::ValuationMap{AbstractAlgebra.Generic.RationalFunctionField{K},AbstractAlgebra.Generic.Rat{K}} where {K})(c) = val.tropical_semiring(t_adic_valuation(c))
-
+function (val::ValuationMap{AbstractAlgebra.Generic.RationalFunctionField{K},AbstractAlgebra.Generic.Rat{K}} where {K})(c)
+  if iszero(c)
+    return inf(val.tropical_semiring)
+  end
+  if convention(val)==min
+    return val.tropical_semiring(t_adic_valuation(c))
+  end
+  return val.tropical_semiring(-t_adic_valuation(c))
+end
 # Display:
 function Base.show(io::IO, val::ValuationMap{AbstractAlgebra.Generic.RationalFunctionField{K},AbstractAlgebra.Generic.Rat{K}} where {K})
     print(io, "The $(val.uniformizer_field)-adic valuation on $(val.valued_field)")
@@ -236,19 +272,29 @@ function simulate_valuation(w::Vector, val::ValuationMap)
   end
   # either way, scale vector to make entries integral
   commonDenom = lcm([denominator(wi) for wi in w])
-  return [Int(numerator(commonDenom*wi)) for wi in w] # casting vector entries to Int32 for Singular
+  sw = [Int(numerator(commonDenom*wi)) for wi in w] # casting vector entries to Int32 for Singular
+  if convention(val)==min
+    sw *= -1
+  end
+  return sw
 end
 
 function simulate_valuation(w::Vector, u::Vector, val::ValuationMap)
   # if the valuation is non-trivial, prepend -1 to the vector
   if !is_valuation_trivial(val)
     w = vcat([-1],w)
-    u = vcat([-1],u)
+    u = vcat([0],u)
   end
   # either way, scale vector to make entries integral
   w_commonDenom = lcm([denominator(wi) for wi in w])
   u_commonDenom = lcm([denominator(ui) for ui in u])
-  return [Int(numerator(w_commonDenom*wi)) for wi in w],[Int(numerator(u_commonDenom*ui)) for ui in u]
+  sw = [Int(numerator(w_commonDenom*wi)) for wi in w]
+  su = [Int(numerator(u_commonDenom*ui)) for ui in u]
+  if convention(val)==min
+    sw *= -1
+    su *= -1
+  end
+  return sw,su
 end
 
 #=======
@@ -310,6 +356,9 @@ function desimulate_valuation(w::Vector,val::ValuationMap)
     w /= w[1]
     popfirst!(w)
   end
+  if convention(val)==min
+    w *= -1
+  end
   return w
 end
 
@@ -320,6 +369,10 @@ function desimulate_valuation(w::Vector, u::Vector, val::ValuationMap)
     w /= w[1]
     popfirst!(w)
     popfirst!(u)
+  end
+  if convention(val)==min
+    w *= -1
+    u *= -1
   end
   return w,u
 end
@@ -373,7 +426,7 @@ function tighten_simulation(f::MPolyElem,val::ValuationMap)
   f_tightened = MPolyBuildCtx(Rtx)
   for (c,alpha) in zip(coefficients(f),exponent_vectors(f))
     c = K(c)//cGcd # casting c into K for the t-adic valuation case where typeof(c)=fmpq_poly
-    v = val(c)
+    v = Int(val(c); preserve_ordering=true)
     alpha[1] += v
     push_term!(f_tightened,R(c//p^v),alpha)
   end
@@ -382,3 +435,14 @@ function tighten_simulation(f::MPolyElem,val::ValuationMap)
 
 end
 export tighten_simulation
+
+
+# function valuation_Int(val::ValuationMap, c)
+#   assert !iszero(c)
+#   vc = Int(ZZ(data(val(c))))
+#   if convention(valuation)==min
+#     return vc
+#   else
+#     return -vc
+#   end
+# end

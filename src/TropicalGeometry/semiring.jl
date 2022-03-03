@@ -164,6 +164,35 @@ end
 
 ################################################################################
 #
+#  Comparison
+#    * min is ordered as usual: -inf < ... < -1 < 0 < 1 < ...
+#    * max is ordered reversely:       ... > -1 > 0 > 1 > ... > inf
+#    (see Section 2.7 in Joswig: "Essentials of Tropical Combinatorics"
+#
+################################################################################
+
+function isless(x::TropicalSemiringElem{typeof(min)}, y::TropicalSemiringElem{typeof(min)})
+  if isinf(x)
+    return false # x=-inf, no y is smaller
+  end
+  if isinf(y)
+    return !isinf(x) # y=-inf, smaller than all x except x=-inf
+  end
+  return data(x) < data(y)
+end
+
+function isless(x::TropicalSemiringElem{typeof(max)}, y::TropicalSemiringElem{typeof(max)})
+  if isinf(x)
+    return false # x=inf, no y is smaller
+  end
+  if isinf(y)
+    return !isinf(x) # y=inf, smaller than all x except x=inf
+  end
+  return data(x) > data(y)
+end
+
+################################################################################
+#
 #  Copying
 #
 ################################################################################
@@ -232,12 +261,12 @@ end
 
 function inv(a::TropicalSemiringElem{T}) where T <: FieldElem
     if iszero(a)
-        error("inverting (tropical zero")
+        error("inverting (tropical) zero")
     end
     return parent(a)(-data(a))
 end
 
-function Base.:(//)(x::TropicalSemiringElem{T}, y::TropicalSemiringElem{T}) where {T}
+function Base.:(//)(a::TropicalSemiringElem{T}, b::TropicalSemiringElem{T}) where {T}
     if iszero(b)
         error("dividing by (tropical) zero")
     end
@@ -264,7 +293,7 @@ end
 ################################################################################
 
 function Base.:(-)(x::TropicalSemiringElem, y::TropicalSemiringElem...)
-  error("Computer says no!")
+  error("Tropical subtraction not defined (use tropical division for classical substraction)")
 end
 
 ################################################################################
@@ -276,6 +305,29 @@ end
 Oscar.mul!(x::TropicalSemiringElem, y::TropicalSemiringElem, z::TropicalSemiringElem) = y * z
 
 Oscar.addeq!(y::TropicalSemiringElem, z::TropicalSemiringElem) = y + z
+
+################################################################################
+#
+#  Conversions
+#
+################################################################################
+
+# converts an element x of the tropical semiring to Int
+#   throws an error if x is infinity / -infinity
+#   preserves ordering if preserve_ordering==true (default: false),
+#   meaning that given x in the max-plus semiring returns -x
+#   meaning that the actual valuation of x is returned
+function (::Type{Int})(x::TropicalSemiringElem{typeof(min)}; preserve_ordering::Bool=false)
+  @assert !iszero(x)
+  return Int(ZZ(data(x)))
+end
+function (::Type{Int})(x::TropicalSemiringElem{typeof(max)}; preserve_ordering::Bool=false)
+  @assert !iszero(x)
+  if preserve_ordering
+    return -Int(ZZ(data(x)))
+  end
+  return Int(ZZ(data(x)))
+end
 
 ################################################################################
 #
