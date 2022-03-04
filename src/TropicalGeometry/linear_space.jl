@@ -88,6 +88,35 @@ TropicalLinearSpace_impl(plv, rank, nElements, min)
 TropicalLinearSpace(plv::Vector{TropicalSemiringElem{typeof(max)}},rank::IntegerUnion, nElements::IntegerUnion) =
 TropicalLinearSpace_impl(plv, rank, nElements, max)
 
+#needs Oscar type as entry
+#TODO requires a fix of ValuationMap
+function TropicalLinearSpace(tropicalmatrix::MatElem, val)
+  plv = [val(p) for p in Nemo.minors(tropicalmatrix, min( nrows(tropicalmatrix), ncols(tropicalmatrix)) )]
+  rk = rank(tropicalmatrix)
+  nelement = max( nrows(tropicalmatrix), ncols(tropicalmatrix))
+  println(typeof(plv))
+  return TropicalLinearSpace(plv, rk, nelement)
+end
+
+function TropicalLinearSpace(tropicalmatrix::Matrix{Int})
+  #which valuation?
+  return TropicalLinearSpace(matrix(ZZ, tropicalmatrix))
+end
+
+function TropicalLinearSpace(tropicalmatrix::Matrix{Union{fmpq, fmpz}})
+  #which valuation?
+  return TropicalLinearSpace(matrix(base_ring(tropicalmatrix), tropicalmatrix))
+end
+
+
+
+function TropicalLinearSpace(tropicalmatrix::Matrix{Rational})
+  return TropicalLinearSpace(matrix(QQ, tropicalmatrix))
+end
+
+TropicalLinearSpace(plv::Vector{TropicalSemiringElem{typeof(max)}},rank::IntegerUnion, nElements::IntegerUnion) =
+TropicalLinearSpace_impl(plv, rank, nElements, max)
+
 
 @doc Markdown.doc"""
     TropicalLinearSpace()
