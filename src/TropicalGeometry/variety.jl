@@ -19,8 +19,8 @@
 @attributes mutable struct TropicalVariety{M,EMB} <: TropicalVarietySupertype{M,EMB}
     polyhedralComplex::PolyhedralComplex
     multiplicities::Dict{Vector{Int}, Int}
-    function TropicalVariety{M,EMB}(Sigma::PolyhedralComplex) where {M,EMB}
-        return new{M,EMB}(Sigma)
+    function TropicalVariety{M,EMB}(Sigma::PolyhedralComplex,multiplicities::Dict{Vector{Int}, Int}) where {M,EMB}
+        return new{M,EMB}(Sigma,multiplicities)
     end
 end
 export TropicalVariety
@@ -53,39 +53,6 @@ end
 # 2. Basic constructors
 # ---------------------
 ###
-
-@doc Markdown.doc"""
-    TropicalVariety()
-
-Construct the embedded tropical variety of a polynomial ideal over a (possibly trivially) valued field
-
-# Examples
-"""
-# todo: Dartmouth
-# function TropicalVariety()
-#
-#     return #...
-# end
-
-
-
-@doc Markdown.doc"""
-    TropicalVariety{M,EMB}(Sigma::PolyhedralComplex)
-
-Construct the abstract tropical variety from a polyhedral complex
-
-# Examples
-```jldoctest
-julia> IM = IncidenceMatrix([[1,2],[1,3],[1,4]]);
-
-julia> VR = [0 0; 1 0; 0 1; -1 -1];
-
-julia> far_vertices = [2,3,4];
-
-julia> Sigma = PolyhedralComplex(IM, VR, far_vertices);
-
-julia> tropicalLine = TropicalVariety{min,true}(Sigma)
-"""
 
 
 ###
@@ -288,44 +255,38 @@ function tropical_variety(I::MPolyIdeal, val::ValuationMap, convention::Union{ty
   end
 
   # 3.1: construct PolyhedralComplex
-  # 3.1.1: construct incidence_matrix, vertices_and_rays, and far_vertices
-  incidence_matrix = Vector{Vector{Int}}()
-  verts_rays = Vector{Vector{Polymake.Rational}}()
-  far_vertices = Vector{Int}()
-  for (w,C,G) in working_list_done
-    incidence_vector = Vector{Int}()
-    for vert in vertices(C)
-      i = findfirst(isequal(vert),verts_rays)
-      if i == nothing
-        # if vert does not occur in verts_rays
-        # add it to verts_rays
-        push!(verts_rays,vert)
-        push!(incidence_vector,length(verts_rays))
-      else
-        push!(incidence_vector,i)
-      end
-    end
-    for ray in rays(C)
-      i = findfirst(isequal(ray),verts_rays)
-      if i == nothing || !(i in far_vertices)
-        # if ray does not occur in verts_rays or if it occurs but not as a ray,
-        # add it to verts_rays
-        push!(verts_rays,ray)
-        push!(far_vertices,length(verts_rays))
-        push!(incidence_vector,length(verts_rays))
-      else
-        push!(incidence_vector,i)
-      end
-    end
-    push!(incidence_matrix,incidence_vector)
 
-  end
-  verts_rays_matrix = permutedims(reduce(hcat, verts_rays)) # convert Vector{Vector} to Matrix
-
-  # 3.1.2: construct lineality space
+  # 3.1.1: construct lineality space
   (w,C,G) = first(working_list_done)
   lineality_space_gens = matrix(QQ,lineality_space(C))
 
+  # 3.1.2: construct incidence_matrix, vertices_and_rays, and far_vertices
+  incidence_matrix = Vector{Vector{Int}}()
+  vertices_and_rays = Vector{Vector{Polymake.Rational}}()
+  far_vertices = Vector{Int}()
+  for (w,C,G) in working_list_done
+    incidence_vector = Vector{Int}()
+    VR = vertices_and_rays_hotl(C) 
+    for vr in VR
+      i = findfirst(isequal(vr),vertices_and_rays)
+      if i === nothing
+        # if vert does not occur in verts_rays
+        # add it to verts_rays
+        push!(vertices_and_rays,vr)
+        push!(incidence_vector,length(vertices_and_rays))
+        if vr[1] == 0
+          push!(far_vertices,length(vertices_and_rays))
+        end
+      else
+        push!(incidence_vector,i)
+      end
+    end
+    
+    push!(incidence_matrix,incidence_vector)
+  end
+  @info incidence_matrix
+  vertices_and_rays_dehomog = [vr[2:end] for vr in vertices_and_rays]
+  vertices_and_rays_matrix = permutedims(reduce(hcat, vertices_and_rays_dehomog)) # convert Vector{Vector} to Matrix
 
 
   # 3.2: Construct lists for weight_vectors, initial_ideals and multiplicities
@@ -336,16 +297,41 @@ function tropical_variety(I::MPolyIdeal, val::ValuationMap, convention::Union{ty
 
 
   PC = PolyhedralComplex(IncidenceMatrix(incidence_matrix),
-  verts_rays_matrix,
+  vertices_and_rays_matrix,
   far_vertices,
   lineality_space_gens)
 
-  verts_rays_perm  = collect(vertices_and_rays(PC))
-  verts_rays_perm = Vector{Int64}.(verts_rays_perm)
-  permutation = [findfirst(isequal(l), verts_rays_perm) for l in verts_rays]    
-#  inc = [findall(c -> c, incidence_matrix[i, :]) for i in 1:size(incidence_matrix, 1)]                                                       
-  new_incidence = [permutation[incidence] for incidence in incidence_matrix]
+  vertices_and_rays_perm  = vertices_and_rays_hotl(PC)
+
+  println(typeof(vertices_and_rays_perm))
+  println(typeof(vertices_and_rays))
+  @info vertices_and_rays_perm
+  @info vertices_and_rays
+  for i in 1:length(vertices_and_rays_perm)
+    for j in length(vertices_and_rays_perm[i])
+      if !iszero(vertices_and_rays_perm[i][j]) 
+        vertices_and_rays_perm[i]//=vertices_and_rays_perm[i][j]
+        break
+      end
+    end
+  end
+
+  for i in 1:length(vertices_and_rays)
+    for j in length(vertices_and_rays[i])
+      if !iszero(vertices_and_rays[i][j]) 
+        vertices_and_rays[i]//=vertices_and_rays[i][j]
+        break
+      end
+    end
+  end
+
+  permutation = [findfirst(isequal(vr), vertices_and_rays_perm) for vr in vertices_and_rays]    
+#  inc = [findall(c -> c, incidence_matrix[i, :]) for i in 1:size(incidence_matrix, 1)]  
+@info permutation
+@info incidence_matrix                                                     
+  new_incidence = [Vector{Int64}(permutation[incidence]) for incidence in incidence_matrix]
   mults = Dict(new_incidence[i] => multiplicities[i] for i in 1:length(working_list_done))
+  println(typeof(mults))
 
   TropI = TropicalVariety{typeof(max),true}(PC, mults)
 
@@ -393,3 +379,4 @@ function facet_points(P::Polyhedron)
   return points
 end
 export facet_points
+

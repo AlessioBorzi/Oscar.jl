@@ -110,7 +110,7 @@ julia> TropicalLinearSpace(A,val);
 ```
 """
 function TropicalLinearSpace(tropicalmatrix::MatElem, val)
-  plv = [val(p) for p in Nemo.minors(tropicalmatrix, min( nrows(tropicalmatrix), ncols(tropicalmatrix)) )]
+  plv = Vector{Oscar.TropicalSemiringElem{typeof(convention(val))}}([val(p) for p in Nemo.minors(tropicalmatrix, min( nrows(tropicalmatrix), ncols(tropicalmatrix)) )])
   rk = rank(tropicalmatrix)
   nelement = max( nrows(tropicalmatrix), ncols(tropicalmatrix))
   println(typeof(plv))

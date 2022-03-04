@@ -129,6 +129,58 @@ function dot(x::Vector{fmpq}, y::Vector{Int64})
   return xy
 end
 
+####
+#
+# computes homogenized coordinates for Vertices and rays of Polyhedron and PolyhedralComplex that are orthogonal to the lineality_space
+#
+####
+function vertices_and_rays(P::Polyhedron)
+
+  return append!(Vector{Union{PointVector{Polymake.Rational},RayVector{Polymake.Rational}}}(collect(vertices(P))),collect(rays(P)))
+
+
+end
+export vertices_and_rays
+function vertices_and_rays_hotl(P::Union{PolyhedralComplex, Polyhedron})
+  VR = vertices_and_rays(P)
+  VR = [thomog(vr) for vr in VR]
+  VR = collect(VR)
+  VR = mapreduce(permutedims, vcat, VR)
+  if lineality_dim(P)>0
+    VR = Polymake.@convert_to Matrix{Rational} VR
+    Polymake.common.project_to_orthogonal_complement(VR, pm_object(P).LINEALITY_SPACE)
+    VR = convert(Matrix{Polymake.Rational}, VR)
+  end 
+  VR = [VR[i,:] for i in 1:nrows(VR)]
+  for i in 1:length(VR)
+    if !iszero(VR[i][1])
+      VR[i]//=VR[i][1]
+    end
+  end
+  return VR
+  end
+  
+export vertices_and_rays_hotl
+
+function pm_object(P::Polyhedron)
+  return P.pm_polytope
+end
+
+function pm_object(P::PolyhedralComplex)
+  return P.pm_complex  
+end
+export pm_object
+
+function thomog(v::PointVector{Polymake.Rational})
+  return append!([Polymake.Rational(1)],v)
+end
+
+function thomog(r::RayVector{Polymake.Rational})
+  return append!([Polymake.Rational(0)],r)
+end
+export thomog
+
+
 # # Workaround for turning a PolyhedralFan of polymake into a proper PolyhedralComplex
 # function polyhedral_complex_workaround(pm::Polymake.BigObject)
 #     pc = pm
