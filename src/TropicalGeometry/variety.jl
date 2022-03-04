@@ -284,7 +284,6 @@ function tropical_variety(I::MPolyIdeal, val::ValuationMap, convention::Union{ty
     
     push!(incidence_matrix,incidence_vector)
   end
-  @info incidence_matrix
   vertices_and_rays_dehomog = [vr[2:end] for vr in vertices_and_rays]
   vertices_and_rays_matrix = permutedims(reduce(hcat, vertices_and_rays_dehomog)) # convert Vector{Vector} to Matrix
 
@@ -303,10 +302,6 @@ function tropical_variety(I::MPolyIdeal, val::ValuationMap, convention::Union{ty
 
   vertices_and_rays_perm  = vertices_and_rays_hotl(PC)
 
-  println(typeof(vertices_and_rays_perm))
-  println(typeof(vertices_and_rays))
-  @info vertices_and_rays_perm
-  @info vertices_and_rays
   for i in 1:length(vertices_and_rays_perm)
     for j in length(vertices_and_rays_perm[i])
       if !iszero(vertices_and_rays_perm[i][j]) 
@@ -327,11 +322,10 @@ function tropical_variety(I::MPolyIdeal, val::ValuationMap, convention::Union{ty
 
   permutation = [findfirst(isequal(vr), vertices_and_rays_perm) for vr in vertices_and_rays]    
 #  inc = [findall(c -> c, incidence_matrix[i, :]) for i in 1:size(incidence_matrix, 1)]  
-@info permutation
-@info incidence_matrix                                                     
+                                                   
   new_incidence = [Vector{Int64}(permutation[incidence]) for incidence in incidence_matrix]
   mults = Dict(new_incidence[i] => multiplicities[i] for i in 1:length(working_list_done))
-  println(typeof(mults))
+
 
   TropI = TropicalVariety{typeof(max),true}(PC, mults)
 
